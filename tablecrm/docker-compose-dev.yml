@@ -1,52 +1,20 @@
 services:
-  worker:
-    build: ./backend
-    image: tablecrm_backend:latest
-    restart: always
-    command: bash -c "python3 worker.py"
-    network_mode: host
-    volumes:
-      - ./backend:/backend
-      - ./certs:/certs
-    environment:
-      APP_URL: ${APP_URL}
-      S3_ACCESS: ${S3_ACCESS}
-      S3_SECRET: ${S3_SECRET}
-      S3_URL: ${S3_URL}
-      TG_TOKEN: ${TG_TOKEN}
-      CHEQUES_TOKEN: ${CHEQUES_TOKEN}
-      ACCOUNT_INTERVAL: ${ACCOUNT_INTERVAL}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASS: ${POSTGRES_PASS}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: ${POSTGRES_PORT}
-      XDG_RUNTIME_DIR: ./tmp
-      RABBITMQ_USER: ${RABBITMQ_USER}
-      RABBITMQ_PASS: ${RABBITMQ_PASS}
-      RABBITMQ_HOST: ${RABBITMQ_HOST}
-      RABBITMQ_PORT: ${RABBITMQ_PORT}
-      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
-      APPLE_PASS_TYPE_ID: ${APPLE_PASS_TYPE_ID}
-      APPLE_TEAM_ID: ${APPLE_TEAM_ID}
-      APPLE_CERTIFICATE_PATH: ${APPLE_CERTIFICATE_PATH}
-      APPLE_KEY_PATH: ${APPLE_KEY_PATH}
-      APPLE_WWDR_PATH: ${APPLE_WWDR_PATH}
-      APPLE_NOTIFICATION_PATH: ${APPLE_NOTIFICATION_PATH}
-      APPLE_NOTIFICATION_KEY: ${APPLE_NOTIFICATION_KEY}
-      PKPASS_PASSWORD: ${PKPASS_PASSWORD}
-
   backend:
     build: ./backend
     image: tablecrm_backend:latest
+    networks:
+      - tablecrm-network
+    ports:
+      - "9000:9000"
     restart: always
     command: bash -c "alembic upgrade head && uvicorn main:app --host=0.0.0.0 --port 9000 --log-level=info --reload"
-    network_mode: host
+#    network_mode: host
     volumes:
       - ./backend:/backend
       - ./photos:/backend/photos
       - ./certs:/certs
-    expose:
-      - 9000
+#    expose:
+#      - 9000
     environment:
       APP_URL: ${APP_URL}
       S3_ACCESS: ${S3_ACCESS}
@@ -75,11 +43,53 @@ services:
       APPLE_NOTIFICATION_KEY: ${APPLE_NOTIFICATION_KEY}
       PKPASS_PASSWORD: ${PKPASS_PASSWORD}
 
+  worker:
+#    build: ./backend
+    image: tablecrm_backend:latest
+    networks:
+      - tablecrm-network
+    restart: always
+    command: bash -c "python3 worker.py"
+    #    network_mode: host
+    volumes:
+      - ./backend:/backend
+      - ./certs:/certs
+    environment:
+      APP_URL: ${APP_URL}
+      S3_ACCESS: ${S3_ACCESS}
+      S3_SECRET: ${S3_SECRET}
+      S3_URL: ${S3_URL}
+      TG_TOKEN: ${TG_TOKEN}
+      CHEQUES_TOKEN: ${CHEQUES_TOKEN}
+      ACCOUNT_INTERVAL: ${ACCOUNT_INTERVAL}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASS: ${POSTGRES_PASS}
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      XDG_RUNTIME_DIR: ./tmp
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_HOST: ${RABBITMQ_HOST}
+      RABBITMQ_PORT: ${RABBITMQ_PORT}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+      APPLE_PASS_TYPE_ID: ${APPLE_PASS_TYPE_ID}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID}
+      APPLE_CERTIFICATE_PATH: ${APPLE_CERTIFICATE_PATH}
+      APPLE_KEY_PATH: ${APPLE_KEY_PATH}
+      APPLE_WWDR_PATH: ${APPLE_WWDR_PATH}
+      APPLE_NOTIFICATION_PATH: ${APPLE_NOTIFICATION_PATH}
+      APPLE_NOTIFICATION_KEY: ${APPLE_NOTIFICATION_KEY}
+      PKPASS_PASSWORD: ${PKPASS_PASSWORD}
+    depends_on:
+      - backend
+
   teleg_bot:
     image: tablecrm_backend:latest
+    networks:
+      - tablecrm-network
     restart: always
     command: python3 bot.py
-    network_mode: host
+#    network_mode: host
     volumes:
       - ./backend:/backend
       - ./photos:/backend/photos
@@ -94,4 +104,9 @@ services:
       S3_ACCESS: ${S3_ACCESS}
       S3_SECRET: ${S3_SECRET}
       S3_URL: ${S3_URL}
+    depends_on:
+      - backend
 
+networks:
+  tablecrm-network:
+    external: true

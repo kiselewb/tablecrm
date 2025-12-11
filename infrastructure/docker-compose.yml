@@ -16,14 +16,19 @@ services:
   nginx:
     image: *nginx_image
     container_name: nginx
-    network_mode: host
+    networks:
+      - tablecrm-network
+    ports:
+      - "80:80"
+      - "443:443"
+#    network_mode: host
     volumes:
       - ./configuration/nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./configuration/nginx/template.conf:/opt/nginx/template.conf
       - ./logs/nginx:/var/log/nginx
-    expose:
-      - 80
-      - 443
+#    expose:
+#      - 80
+#      - 443
 #    healthcheck:
 #      test: [ "CMD-SHELL", "lsof -i tcp:80 | grep LISTEN || service nginx stop" ]
 #      interval: 30s
@@ -32,7 +37,7 @@ services:
     environment:
       NGINX_HOST: ${HOST}
       ADMINER_UPSTREAM_PORT: 8080
-      SCALITY_UPSTREAM_PORT: 9001
+      SCALITY_UPSTREAM_PORT: 8000
       RABBIT_UPSTREAM_PORT: 15672
 
     command: /bin/sh -c "envsubst '{\$$NGINX_HOST,\$$ADMINER_UPSTREAM_PORT,\$$SCALITY_UPSTREAM_PORT,\$$RABBIT_UPSTREAM_PORT}' < /opt/nginx/template.conf > /etc/nginx/conf.d/default.conf && while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
@@ -47,7 +52,12 @@ services:
   rabbitmq:
     image: *rabbitmq_image
     container_name: rabbitmq
-    network_mode: host
+    networks:
+      - tablecrm-network
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+#    network_mode: host
     volumes:
       - ./data/rabbitmq:/var/lib/rabbitmq
     environment:
@@ -55,9 +65,9 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
-    expose:
-      - 5672
-      - 15672
+#    expose:
+#      - 5672
+#      - 15672
     healthcheck:
       test: rabbitmq-diagnostics -q ping || exit 1
       interval: 30s
@@ -71,9 +81,13 @@ services:
   db:
     image: *db_image
     container_name: db
-    network_mode: host
-    expose:
-      - 5432
+    networks:
+      - tablecrm-network
+    ports:
+      - "5432:5432"
+#    network_mode: host
+#    expose:
+#      - 5432
     volumes:
       - ./data/database/db:/var/lib/postgresql/data
     environment:
@@ -86,25 +100,37 @@ services:
   adminer:
     image: *adminer_image
     container_name: adminer
-    network_mode: host
-    expose:
-      - 8080
+    networks:
+      - tablecrm-network
+    ports:
+      - "8080:8080"
+#    network_mode: host
+#    expose:
+#      - 8080
     depends_on:
       - db
     restart: unless-stopped
     logging: *default-logging
-
-    healthcheck:
-      test: [ "CMD", "curl", "-k", "https://localhost:9000/minio/health/live" ]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+#    healthcheck:
+#      test: [ "CMD", "curl", "-k", "https://localhost:9000/minio/health/live" ]
+#      interval: 30s
+#      timeout: 20s
+#      retries: 3
 
   scality:
     image: *scality_image
     container_name: scality
-    network_mode: host
-    expose:
-      - 8000
+    networks:
+      - tablecrm-network
+    ports:
+      - "8000:8000"
+#    network_mode: host
+#    expose:
+#      - 8000
     restart: unless-stopped
     logging: *default-logging
+
+networks:
+  tablecrm-network:
+    name: tablecrm-network  # явное имя сети
+    driver: bridge
