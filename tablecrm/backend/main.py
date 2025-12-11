@@ -189,13 +189,13 @@ from api.balances.transactions_routers import tinkoff_callback
 # )
 
 app = FastAPI(
-    root_path='/api/v1',
+    # root_path='/api/v1',
     title="TABLECRM API",
     description="Документация API TABLECRM",
     version="1.0",
-    # docs_url="/docs",
-    # redoc_url="/redoc",
-    # openapi_url="/openapi.json"
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json"
 )
 
 app.add_middleware(GZipMiddleware)
