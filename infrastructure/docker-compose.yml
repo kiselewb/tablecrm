@@ -1,0 +1,110 @@
+x-settings:
+  image_versions:
+    NGINX: &nginx_image nginx:latest
+    RABBITMQ: &rabbitmq_image rabbitmq:3.8.16-management
+    DB: &db_image postgres:14-alpine
+    ADMINER: &adminer_image adminer:4.7.9
+    SCALITY: &scality_image scality/s3server:latest
+
+  logging: &default-logging
+    driver: "json-file"
+    options:
+      max-size: "100m"
+      max-file: "5"
+
+services:
+  nginx:
+    image: *nginx_image
+    container_name: nginx
+    network_mode: host
+    volumes:
+      - ./configuration/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./configuration/nginx/template.conf:/opt/nginx/template.conf
+      - ./logs/nginx:/var/log/nginx
+    expose:
+      - 80
+      - 443
+#    healthcheck:
+#      test: [ "CMD-SHELL", "lsof -i tcp:80 | grep LISTEN || service nginx stop" ]
+#      interval: 30s
+#      timeout: 15s
+#      retries: 10
+    environment:
+      NGINX_HOST: ${HOST}
+      ADMINER_UPSTREAM_PORT: 8080
+      SCALITY_UPSTREAM_PORT: 9001
+      RABBIT_UPSTREAM_PORT: 15672
+
+    command: /bin/sh -c "envsubst '{\$$NGINX_HOST,\$$ADMINER_UPSTREAM_PORT,\$$SCALITY_UPSTREAM_PORT,\$$RABBIT_UPSTREAM_PORT}' < /opt/nginx/template.conf > /etc/nginx/conf.d/default.conf && while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g 'daemon off;'"
+    depends_on:
+      - adminer
+      - rabbitmq
+      - db
+      - scality
+    restart: unless-stopped
+    logging: *default-logging
+
+  rabbitmq:
+    image: *rabbitmq_image
+    container_name: rabbitmq
+    network_mode: host
+    volumes:
+      - ./data/rabbitmq:/var/lib/rabbitmq
+    environment:
+      RABBITMQ_ERLANG_COOKIE: ${RABBITMQ_ERLANG_COOKIE}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+    expose:
+      - 5672
+      - 15672
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    labels:
+      NAME: rabbitmq
+    restart: unless-stopped
+    logging: *default-logging
+
+  db:
+    image: *db_image
+    container_name: db
+    network_mode: host
+    expose:
+      - 5432
+    volumes:
+      - ./data/database/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: unless-stopped
+    logging: *default-logging
+
+  adminer:
+    image: *adminer_image
+    container_name: adminer
+    network_mode: host
+    expose:
+      - 8080
+    depends_on:
+      - db
+    restart: unless-stopped
+    logging: *default-logging
+
+    healthcheck:
+      test: [ "CMD", "curl", "-k", "https://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  scality:
+    image: *scality_image
+    container_name: scality
+    network_mode: host
+    expose:
+      - 8000
+    restart: unless-stopped
+    logging: *default-logging

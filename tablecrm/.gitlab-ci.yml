@@ -1,0 +1,32 @@
+stages:
+  - docker
+
+build-up-docker-job:
+  stage: docker
+  only:
+    - master
+  tags:
+    - master_backend_runner
+  environment: production
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker build -t tablecrm_backend:latest ./backend
+    - docker tag tablecrm_backend:latest $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+  script:
+    - chmod +x deploy.sh
+    - ./deploy.sh
+
+build-up-docker-job-dev:
+  stage: docker
+  only:
+    - dev
+  tags:
+    - dev_runner
+  environment: dev
+  before_script:
+    - export COMPOSE_FILE=docker-compose-dev-server.yml
+    - export CI_COMMIT_REF_NAME=$CI_COMMIT_REF_NAME
+    - docker compose build
+  script:
+    - RABBITMQ_HOST="$RABBITMQ_HOST" RABBITMQ_PORT="$RABBITMQ_PORT" RABBITMQ_USER="$RABBITMQ_USER" RABBITMQ_PASS="$RABBITMQ_PASS" RABBITMQ_VHOST="$RABBITMQ_VHOST" APP_URL="$APP_URL" S3_ACCESS="$S3_ACCESS" S3_SECRET="$S3_SECRET" S3_URL="$S3_URL" S3_BACKUPS_ACCESSKEY="$S3_BACKUPS_ACCESSKEY" S3_BACKUPS_SECRETKEY="$S3_BACKUPS_SECRETKEY" TG_TOKEN="$TG_TOKEN" POSTGRES_USER="$POSTGRES_USER" POSTGRES_PASS="$POSTGRES_PASS" POSTGRES_HOST="$POSTGRES_HOST" POSTGRES_PORT="$POSTGRES_PORT" CHEQUES_TOKEN="$CHEQUES_TOKEN" ACCOUNT_INTERVAL="$ACCOUNT_INTERVAL" GEOAPIFY_SECRET="$GEOAPIFY_SECRET" APPLE_PASS_TYPE_ID="$APPLE_PASS_TYPE_ID" APPLE_TEAM_ID="$APPLE_TEAM_ID" APPLE_CERTIFICATE_PATH="$APPLE_CERTIFICATE_PATH" APPLE_KEY_PATH="$APPLE_KEY_PATH" APPLE_WWDR_PATH="$APPLE_WWDR_PATH" APPLE_NOTIFICATION_PATH="$APPLE_NOTIFICATION_PATH" APPLE_NOTIFICATION_KEY="$APPLE_NOTIFICATION_KEY" PKPASS_PASSWORD="$PKPASS_PASSWORD" docker compose up -d --force-recreate
